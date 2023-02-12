@@ -675,7 +675,7 @@ impl Regex {
         }
         let ovector = match_data.ovector();
         let (s, e) = (ovector[0], ovector[1]);
-        Ok(Some(Match::new(&subject[s..e], s, e)))
+        Ok(Some(Match::new(subject, s, e)))
     }
 
     /// This is like `captures`, but uses
@@ -728,7 +728,7 @@ impl Regex {
         }
         let ovector = locs.data.ovector();
         let (s, e) = (ovector[0], ovector[1]);
-        Ok(Some(Match::new(&subject[s..e], s, e)))
+        Ok(Some(Match::new(subject, s, e)))
     }
 }
 
