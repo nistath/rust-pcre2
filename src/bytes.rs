@@ -78,6 +78,8 @@ struct Config {
     jit: JITChoice,
     /// Match-time specific configuration knobs.
     match_config: MatchConfig,
+    /// Initial capacity for thread local storage
+    thread_local_capacity: std::num::NonZeroUsize,
 }
 
 #[derive(Clone, Debug)]
@@ -103,6 +105,8 @@ impl Default for Config {
             utf_check: true,
             jit: JITChoice::Never,
             match_config: MatchConfig::default(),
+            thread_local_capacity: std::thread::available_parallelism()
+                .unwrap_or(std::num::NonZeroUsize::new(2).unwrap()),
         }
     }
 }
@@ -177,7 +181,7 @@ impl RegexBuilder {
             code: Arc::new(code),
             capture_names: Arc::new(capture_names),
             capture_names_idx: Arc::new(idx),
-            match_data: ThreadLocal::new(),
+            match_data: ThreadLocal::with_capacity(self.config.thread_local_capacity.into()),
         })
     }
 
@@ -349,6 +353,19 @@ impl RegexBuilder {
         self.config.match_config.max_jit_stack_size = bytes;
         self
     }
+
+    /// Set the initial capacity for the internal `ThreadLocal` storage.
+    /// This can help prevent reallocations.
+    ///
+    /// By default, this is set to `std::thread::available_parallelism()`
+    /// or `2` if there is an error obtaining the thread count.
+    pub fn thread_local_capacity(
+        &mut self,
+        capacity: std::num::NonZeroUsize,
+    ) -> &mut RegexBuilder {
+        self.config.thread_local_capacity = capacity;
+        self
+    }
 }
 
 /// A compiled PCRE2 regular expression.
@@ -383,7 +400,7 @@ impl Clone for Regex {
             code: Arc::clone(&self.code),
             capture_names: Arc::clone(&self.capture_names),
             capture_names_idx: Arc::clone(&self.capture_names_idx),
-            match_data: ThreadLocal::new(),
+            match_data: ThreadLocal::with_capacity(self.config.thread_local_capacity.into()),
         }
     }
 }
